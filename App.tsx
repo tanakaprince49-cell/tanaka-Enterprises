@@ -1,82 +1,85 @@
-
-import React, { Suspense, lazy, useEffect, useState } from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
+import React, { Suspense, lazy, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, Link } from 'react-router-dom';
+import { Nav } from './components/Nav';
+import { Footer } from './components/Footer';
+import { Atmosphere } from './components/Atmosphere';
+import { applyPageSeo } from './lib/seo';
 
 const Home = lazy(() => import('./pages/Home'));
-const Nestly = lazy(() => import('./pages/Nestly'));
+const Ventures = lazy(() => import('./pages/Ventures'));
 const About = lazy(() => import('./pages/About'));
+const Journal = lazy(() => import('./pages/Journal'));
 const Contact = lazy(() => import('./pages/Contact'));
-const Blog = lazy(() => import('./pages/Blog'));
-const Auth = lazy(() => import('./pages/Auth'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Press = lazy(() => import('./pages/Press'));
 
-export interface UserProfile {
-  email: string;
-  name: string;
-  profilePic: string;
-  isLoggedIn: boolean;
-}
-
-const App: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved ? saved === 'dark' : true;
-  });
-
-  const [user, setUser] = useState<UserProfile>(() => {
-    const savedUser = localStorage.getItem('user_session');
-    return savedUser ? JSON.parse(savedUser) : {
-      email: '',
-      name: '',
-      profilePic: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop',
-      isLoggedIn: false
-    };
-  });
+/** Keeps SEO tags and scroll position correct on every client navigation. */
+const RouteEffects: React.FC = () => {
+  const { pathname, hash } = useLocation();
 
   useEffect(() => {
-    localStorage.setItem('user_session', JSON.stringify(user));
-  }, [user]);
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+    applyPageSeo(pathname);
+    if (hash) {
+      const target = document.querySelector(hash);
+      if (target) {
+        requestAnimationFrame(() =>
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        );
+        return;
+      }
     }
-  }, [isDarkMode]);
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [pathname, hash]);
 
-  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+  return null;
+};
 
+const Loading: React.FC = () => (
+  <div className="flex min-h-[70vh] items-center justify-center">
+    <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/15 border-t-white/80" />
+  </div>
+);
+
+const NotFound: React.FC = () => (
+  <>
+    <Atmosphere />
+    <div className="relative z-10 mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center justify-center px-6 text-center">
+      <p className="eyebrow mb-4">404</p>
+      <h1 className="display text-4xl text-white sm:text-5xl">Nothing built here yet.</h1>
+      <p className="mt-5 text-[16px] leading-relaxed text-slate-400">
+        This page does not exist. It may have been one of the links we removed when the site
+        was rebuilt.
+      </p>
+      <Link
+        to="/"
+        className="btn btn--primary mt-8"
+      >
+        Back to the home page
+      </Link>
+    </div>
+  </>
+);
+
+export default function App() {
   return (
-    <Router>
-      <div className="min-h-screen flex flex-col selection:bg-zinc-500/20 bg-zinc-50 dark:bg-[#050505] transition-colors duration-500">
-        <Navbar isDarkMode={isDarkMode} toggleTheme={toggleTheme} user={user} />
-        
-        <main className="flex-grow">
-          <Suspense fallback={
-            <div className="h-screen flex items-center justify-center bg-zinc-50 dark:bg-[#050505]">
-              <div className="w-6 h-6 border-2 border-zinc-200 dark:border-white/10 border-t-zinc-900 dark:border-t-white rounded-full animate-spin"></div>
-            </div>
-          }>
+    <BrowserRouter>
+      <RouteEffects />
+      <div className="flex min-h-screen flex-col">
+        <Nav />
+        <main className="flex-1">
+          <Suspense fallback={<Loading />}>
             <Routes>
               <Route path="/" element={<Home />} />
-              <Route path="/nestly" element={<Nestly />} />
+              <Route path="/ventures" element={<Ventures />} />
               <Route path="/about" element={<About />} />
-              <Route path="/blog" element={<Blog />} />
+              <Route path="/journal" element={<Journal />} />
               <Route path="/contact" element={<Contact />} />
-              <Route path="/auth" element={<Auth setUser={setUser} user={user} />} />
-              <Route path="/dashboard" element={<Dashboard user={user} setUser={setUser} />} />
+              <Route path="/press" element={<Press />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </main>
         <Footer />
       </div>
-    </Router>
+    </BrowserRouter>
   );
-};
-
-export default App;
+}
